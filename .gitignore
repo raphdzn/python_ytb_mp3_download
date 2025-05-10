@@ -1,0 +1,16 @@
+# Environnement virtuel
+venv/
+
+# Dossier de sortie des MP3
+output/
+
+# Fichiers Python compilés
+__pycache__/
+*.pyc
+
+# Fichiers temporaires ou locaux
+*.log
+*.tmp
+
+# Fichier de liens (optionnel, à décommenter si vous ne voulez pas versionner links.txt)
+# links.txt
