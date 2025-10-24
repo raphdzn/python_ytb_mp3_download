@@ -9,7 +9,7 @@ Script Python pour télécharger des vidéos YouTube en MP3 à partir d'un fichi
 
 ## Installation
 
-- `git clone https://github.com/raphdzn/python_ytb_mp3_download`
+- `git clone https://github.com/raphdzn/python_ytb_mp3_download.git`
 - `cd python_ytb_mp3_download`
 - `python -m venv venv`
 - `.\venv\Scripts\activate  # Sur Windows`
