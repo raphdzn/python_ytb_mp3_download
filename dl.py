@@ -1,7 +1,35 @@
 import os
+import sys
+
 import yt_dlp
-import tkinter as tk
-from tkinter import filedialog, messagebox
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtGui import QIcon
+from PyQt6.QtWidgets import (
+    QApplication,
+    QFileDialog,
+    QLabel,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+
+# --- Helper for PyInstaller ---
+
+
+def resource_path(relative_path):
+    """Get absolute path to resource, works for dev and for PyInstaller"""
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+
+# --- Business Logic ---
 
 
 def create_output_directory(output_dir="output"):
@@ -10,186 +38,200 @@ def create_output_directory(output_dir="output"):
         os.makedirs(output_dir)
 
 
-def download_youtube_to_mp3(links_file, output_dir="output"):
-    """Download YouTube videos as MP3 from a text file.
+class DownloaderThread(QThread):
+    """Worker thread for downloading files to prevent UI freezing."""
 
-    Returns a tuple (success_count, fail_count).
-    """
-    # Get the absolute path of the ffmpeg folder in the project
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    ffmpeg_path = os.path.join(script_dir, "ffmpeg")
+    progress_signal = pyqtSignal(str)
+    finished_signal = pyqtSignal(str)
 
-    # Check if FFmpeg binaries exist
-    if not os.path.exists(os.path.join(ffmpeg_path, "ffmpeg.exe")):
-        raise FileNotFoundError("ffmpeg.exe not found in the ffmpeg folder. Make sure it is included in the project.")
-    if not os.path.exists(os.path.join(ffmpeg_path, "ffprobe.exe")):
-        raise FileNotFoundError("ffprobe.exe not found in the ffmpeg folder. Make sure it is included in the project.")
+    def __init__(self, links_file):
+        super().__init__()
+        self.links_file = links_file
 
-    # yt-dlp options
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '320',
-        }],
-        'outtmpl': os.path.join(output_dir, '%(title)s.%(ext)s'),
-        'noplaylist': True,
-        'ffmpeg_location': ffmpeg_path,  # Use local ffmpeg folder
-    }
-
-    # Read links from the text file
-    try:
-        with open(links_file, 'r', encoding='utf-8') as file:
-            links = [line.strip() for line in file if line.strip()]
-    except FileNotFoundError:
-        print(f"Error: The file {links_file} was not found.")
-        return 0, 0
-    except Exception as e:
-        print(f"Error reading the file: {e}")
-        return 0, 0
-
-    success_count = 0
-    fail_count = 0
-
-    # Download each link
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        for link in links:
-            try:
-                print(f"Downloading: {link}")
-                ydl.download([link])
-                print(f"Download finished for: {link}")
-                success_count += 1
-            except Exception as e:
-                print(f"Error downloading {link}: {e}")
-                fail_count += 1
-
-    return success_count, fail_count
-
-
-def choose_file_dialog(root):
-    """Open a dialog to choose a file and return its path."""
-    file_path = filedialog.askopenfilename(
-        parent=root,
-        title="Choose the file containing the links (1 link per line)",
-        filetypes=[("Text files", "*.txt"), ("All files", "*")]
-    )
-    return file_path
-
-
-def run_gui():
-    root = tk.Tk()
-    root.title("YouTube to MP3 Downloader")
-    root.geometry("480x170")
-    root.resizable(False, False)
-
-    # --- Modern dark theme colors ---
-    bg_main = "#18191A"  # almost black
-    bg_frame = "#23272F"  # dark gray
-    fg_text = "#F1F1F1"   # light text
-    accent = "#3A8DFF"    # blue accent
-    btn_bg = "#23272F"
-    btn_fg = fg_text
-    btn_active = "#31343B"
-    border_color = "#222"
-    font_main = ("Segoe UI", 11)
-    font_bold = ("Segoe UI", 11, "bold")
-
-    root.configure(bg=bg_main)
-
-    selected_file_var = tk.StringVar(value="No file selected")
-
-    def on_choose_file():
-        path = choose_file_dialog(root)
-        if path:
-            selected_file_var.set(path)
-
-    def on_start():
-        links_file = selected_file_var.get()
-        if not links_file or links_file == "No file selected":
-            messagebox.showwarning("No file", "Please choose a file containing the links first.")
-            return
+    def run(self):
+        """The actual download logic that runs in the thread."""
         try:
             create_output_directory()
-            success, fail = download_youtube_to_mp3(links_file)
-            message = f"Finished. Success: {success}, Failed: {fail}"
-            messagebox.showinfo("Finished", message)
-        except FileNotFoundError as fnf:
-            messagebox.showerror("FFmpeg Error", str(fnf))
+            self._download_youtube_to_mp3()
         except Exception as e:
-            messagebox.showerror("Error", f"An unexpected error occurred: {e}")
+            error_msg = f"An unexpected error occurred: {e}"
+            self.finished_signal.emit(error_msg)
 
-    # --- Frame ---
-    frame = tk.Frame(root, bg=bg_frame, padx=18, pady=18, bd=0, relief="flat")
-    frame.pack(fill=tk.BOTH, expand=True, padx=18, pady=18)
+    def _download_youtube_to_mp3(self, output_dir="output"):
+        """Download YouTube videos as MP3 from a text file."""
+        # Use resource_path to find ffmpeg
+        ffmpeg_path = resource_path("ffmpeg")
 
-    # --- Label ---
-    label = tk.Label(
-        frame,
-        textvariable=selected_file_var,
-        wraplength=420,
-        anchor='w',
-        justify='left',
-        bg=bg_frame,
-        fg=fg_text,
-        font=font_main,
-        bd=0,
-        highlightthickness=0
-    )
-    label.pack(fill=tk.X, pady=(0, 14))
+        if not os.path.exists(
+            os.path.join(ffmpeg_path, "ffmpeg.exe")
+        ) or not os.path.exists(os.path.join(ffmpeg_path, "ffprobe.exe")):
+            self.finished_signal.emit(
+                "FFmpeg not found. Please check the ffmpeg folder."
+            )
+            return
 
-    # --- Buttons ---
-    btn_frame = tk.Frame(frame, bg=bg_frame)
-    btn_frame.pack(fill=tk.X)
+        ydl_opts = {
+            "format": "bestaudio/best",
+            "postprocessors": [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "mp3",
+                    "preferredquality": "320",
+                }
+            ],
+            "outtmpl": os.path.join(output_dir, "%(title)s.%(ext)s"),
+            "noplaylist": True,
+            "ffmpeg_location": ffmpeg_path,
+        }
 
-    style = {
-        "bg": btn_bg,
-        "fg": btn_fg,
-        "activebackground": btn_active,
-        "activeforeground": accent,
-        "font": font_bold,
-        "bd": 0,
-        "relief": "flat",
-        "highlightthickness": 0,
-        "cursor": "hand2",
-        "padx": 18,
-        "pady": 8,
-    }
+        try:
+            with open(self.links_file, "r", encoding="utf-8") as file:
+                links = [line.strip() for line in file if line.strip()]
+            if not links:
+                self.finished_signal.emit("The selected file is empty.")
+                return
+        except Exception as e:
+            self.finished_signal.emit(f"Error reading the file: {e}")
+            return
 
-    choose_btn = tk.Button(
-        btn_frame,
-        text="Choose file",
-        command=on_choose_file,
-        **style
-    )
-    choose_btn.pack(side=tk.LEFT, padx=(0, 10))
+        success_count = 0
+        fail_count = 0
+        total_links = len(links)
 
-    start_btn = tk.Button(
-        btn_frame,
-        text="Start download",
-        command=on_start,
-        **style
-    )
-    start_btn.pack(side=tk.LEFT)
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            for i, link in enumerate(links):
+                try:
+                    self.progress_signal.emit(
+                        f"Downloading link {i + 1} of {total_links}..."
+                    )
+                    ydl.download([link])
+                    success_count += 1
+                except Exception as e:
+                    print(f"Error downloading {link}: {e}")
+                    fail_count += 1
 
-    # --- Rounded corners (Windows 11+ only, best effort) ---
-    try:
-        root.wm_attributes('-transparentcolor', '#123456')  # hack for rounded corners if using custom window shape
-    except Exception:
-        pass
+        result_msg = f"Finished. Success: {success_count}, Failed: {fail_count}"
+        self.finished_signal.emit(result_msg)
 
-    # --- Modern font for all widgets ---
-    root.option_add("*Font", font_main)
 
-    # --- Remove focus border on buttons ---
-    root.option_add("*Button.highlightThickness", 0)
+# --- PyQt6 GUI ---
 
-    root.mainloop()
+
+class DropLabel(QLabel):
+    """A custom label that accepts file drops."""
+
+    file_dropped = pyqtSignal(str)
+
+    def __init__(self, text):
+        super().__init__(text)
+        self.setAcceptDrops(True)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setStyleSheet("""
+            QLabel {
+                border: 2px dashed #aaa;
+                border-radius: 10px;
+                padding: 20px;
+                font-size: 16px;
+                color: #888;
+            }
+        """)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls() and len(event.mimeData().urls()) == 1:
+            file_path = event.mimeData().urls()[0].toLocalFile()
+            if file_path.endswith(".txt"):
+                event.acceptProposedAction()
+                self.setStyleSheet("border-color: #3A8DFF;")
+
+    def dragLeaveEvent(self, event):
+        self.setStyleSheet("border-color: #aaa;")
+
+    def dropEvent(self, event):
+        file_path = event.mimeData().urls()[0].toLocalFile()
+        self.file_dropped.emit(file_path)
+        self.setStyleSheet("border-color: #aaa;")
+
+
+class App(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("YouTube to MP3 Downloader")
+        self.setGeometry(100, 100, 480, 250)
+
+        # Set the window icon
+        self.setWindowIcon(QIcon(resource_path("assets/logo.ico")))
+
+        self.links_file = None
+        self.downloader_thread = None
+
+        # --- UI Elements ---
+        self.drop_label = DropLabel("Drag & drop a .txt file here\nor")
+        self.drop_label.file_dropped.connect(self.handle_file_path)
+
+        self.choose_button = QPushButton("Choose a file...")
+        self.choose_button.clicked.connect(self.open_file_dialog)
+
+        self.status_label = QLabel("Select a file to start.")
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.start_button = QPushButton("Start Download")
+        self.start_button.setEnabled(False)
+        self.start_button.clicked.connect(self.start_download)
+
+        # --- Layout ---
+        layout = QVBoxLayout()
+        layout.addWidget(self.drop_label)
+        layout.addWidget(self.choose_button)
+        layout.addWidget(self.status_label)
+        layout.addWidget(self.start_button)
+
+        container = QWidget()
+        container.setLayout(layout)
+        self.setCentralWidget(container)
+
+    def open_file_dialog(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Choose the file containing the links", "", "Text files (*.txt)"
+        )
+        if file_path:
+            self.handle_file_path(file_path)
+
+    def handle_file_path(self, file_path):
+        self.links_file = file_path
+        filename = os.path.basename(file_path)
+        self.status_label.setText(f"File selected: {filename}")
+        self.start_button.setEnabled(True)
+
+    def start_download(self):
+        if not self.links_file:
+            QMessageBox.warning(self, "No file", "Please select a file first.")
+            return
+
+        self.start_button.setEnabled(False)
+        self.choose_button.setEnabled(False)
+        self.setAcceptDrops(False)  # Disable dropping during download
+
+        self.downloader_thread = DownloaderThread(self.links_file)
+        self.downloader_thread.progress_signal.connect(self.update_status)
+        self.downloader_thread.finished_signal.connect(self.on_download_finished)
+        self.downloader_thread.start()
+
+    def update_status(self, message):
+        self.status_label.setText(message)
+
+    def on_download_finished(self, message):
+        self.update_status(message)
+        self.start_button.setEnabled(True)
+        self.choose_button.setEnabled(True)
+        self.setAcceptDrops(True)
+        self.links_file = None
 
 
 def main():
-    # Launch the graphical interface
-    run_gui()
+    app = QApplication(sys.argv)
+    window = App()
+    window.show()
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":

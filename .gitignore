@@ -1,16 +1,11 @@
-# Environnement virtuel
 venv/
-
-# Dossier de sortie des MP3
 output/
-
-# Fichiers Python compilés
+ffmpeg/
 __pycache__/
 *.pyc
-
-# Fichiers temporaires ou locaux
+build/
+assets/
 *.log
 *.tmp
-
-# Fichier de liens (optionnel, à décommenter si vous ne voulez pas versionner links.txt)
-# links.txt
+*.txt
+*.exe
