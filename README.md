@@ -1,8 +1,8 @@
-# YouTube MP3 Downloader
+# TubeStealer
 
 A user-friendly desktop application to batch download YouTube videos as high-quality MP3 files from a list of links.
 
-![App Screenshot](assets/logo.ico) 
+![App Screenshot](assets/logo.ico)
 *(Note: App icon shown. The actual UI is a simple window with drag-and-drop support.)*
 
 ## Features
@@ -70,7 +70,7 @@ To run or modify the project in a development environment:
 
 4.  **Run the application:**
     ```sh
-    python dl.py
+    python tubestealer.py
     ```
 
 ---
@@ -101,21 +101,22 @@ You can package the application into a single standalone executable using **PyIn
 3.  **Run the build command:**
     - **For Windows:**
       ```sh
-      pyinstaller --onefile --noconsole --icon "assets/logo.ico" --add-data "ffmpeg;ffmpeg" --add-data "assets;assets" dl.py
+      pyinstaller --onefile --noconsole --name "TubeStealer" --icon "assets/logo.ico" --add-data "ffmpeg;ffmpeg" --add-data "assets;assets" tubestealer.py
       ```
     - **For Linux:**
       ```sh
-      pyinstaller --onefile --noconsole --icon "assets/logo.png" --add-data "ffmpeg:ffmpeg" --add-data "assets:assets" dl.py
+      pyinstaller --onefile --noconsole --name "TubeStealer" --icon "assets/logo.png" --add-data "ffmpeg:ffmpeg" --add-data "assets:assets" tubestealer.py
       ```
 
     **Command breakdown:**
     - `--onefile`: Bundles everything into a single `.exe` (or executable file on Linux).
     - `--noconsole`: Hides the background command-line window.
+    - `--name "TubeStealer"`: Sets the name of the final executable.
     - `--icon`: Sets the file icon (and default window icon).
     - `--add-data "SOURCE:DEST"`: Bundles additional files/folders. The path separator is `;` for Windows and `:` for Linux/macOS.
 
 4.  **Find the executable:**
-    - The final application will be located in the `dist/` directory.
+    - The final application will be located in the `dist/` directory, named `TubeStealer.exe` (on Windows).
 
 ---
 
@@ -128,7 +129,7 @@ You can package the application into a single standalone executable using **PyIn
 ├───ffmpeg/
 │   ├───ffmpeg.exe    # For Windows
 │   └───ffprobe.exe   # For Windows
-├───dl.py             # Main application script (PyQt6 UI and logic)
+├───tubestealer.py    # Main application script (PyQt6 UI and logic)
 ├───requirements.txt  # Python dependencies
 └───README.md         # This file
 ```
