@@ -4,7 +4,6 @@ ffmpeg/
 __pycache__/
 *.pyc
 build/
-assets/
 *.log
 *.tmp
 *.txt
