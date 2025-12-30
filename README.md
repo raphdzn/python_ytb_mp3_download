@@ -2,8 +2,12 @@
 
 A user-friendly desktop application to batch download YouTube videos as high-quality MP3 files from a list of links.
 
+<<<<<<< HEAD
 ![App Screenshot](assets/logo.ico)
 *(Note: App icon shown. The actual UI is a simple window with drag-and-drop support.)*
+=======
+![App Screenshot](assets/logo.ico) 
+>>>>>>> f0dfc1074ba5e9a6af0cae5f602cc2ff535805a0
 
 ## Features
 
