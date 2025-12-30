@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['dl.py'],
+    ['tubestealer.py'],
     pathex=[],
     binaries=[],
     datas=[('ffmpeg', 'ffmpeg'), ('assets', 'assets')],
@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='dl',
+    name='tubestealer',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
